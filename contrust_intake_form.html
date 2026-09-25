@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrust — Client Intake</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#1F3864; --accent:#2E75B6; --mint:#02C39A; --paper:#FAF7F0; --line:#DFD8C4; --ink:#16292B; }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; padding:40px 20px;}
+  .card{max-width:600px; margin:0 auto; background:#fff; border-radius:16px; padding:36px; box-shadow:0 2px 24px rgba(0,0,0,0.06);}
+  h1{font-family:'Fraunces',serif; font-size:26px; color:var(--navy); margin:0 0 6px;}
+  .sub{color:#6B7877; font-size:14px; margin-bottom:28px;}
+  label{display:block; font-size:13px; font-weight:600; margin:18px 0 6px;}
+  label:first-of-type{margin-top:0;}
+  input, select, textarea{width:100%; padding:11px 13px; border-radius:8px; border:1px solid var(--line); font-family:'Inter',sans-serif; font-size:14.5px; background:var(--paper);}
+  textarea{resize:vertical; min-height:80px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  button{margin-top:24px; width:100%; padding:14px; border:none; border-radius:8px; background:var(--navy); color:#fff; font-weight:600; font-size:15px; cursor:pointer;}
+  button:hover{background:#16294A;}
+  button:disabled{opacity:0.6; cursor:not-allowed;}
+  .status{font-size:12px; text-align:center; margin-top:10px; min-height:16px; color:#6B7877;}
+  .success{display:none; text-align:center; padding:20px 0;}
+  .success.show{display:block;}
+  .success svg{width:44px; height:44px; color:var(--mint);}
+  .success h2{font-family:'Fraunces',serif; font-size:20px; color:var(--navy); margin:12px 0 6px;}
+  .success p{font-size:14px; color:#6B7877;}
+  .success button{background:transparent; color:var(--accent); border:1.5px solid var(--accent); margin-top:20px;}
+  .success button:hover{background:var(--accent); color:#fff;}
+  .admin-link{display:block; text-align:center; margin-top:18px; font-size:12px; color:#9BA5A4; text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="formView">
+    <h1>Tell us about your business</h1>
+    <div class="sub">This takes about 2 minutes. We'll follow up with the right next step for you.</div>
+    <form id="intakeForm">
+      <label for="name">Your name *</label>
+      <input type="text" id="name" required>
+
+      <div class="row2">
+        <div>
+          <label for="business">Business name</label>
+          <input type="text" id="business">
+        </div>
+        <div>
+          <label for="phone">Phone / WhatsApp *</label>
+          <input type="tel" id="phone" required>
+        </div>
+      </div>
+
+      <label for="industry">What does your business do?</label>
+      <input type="text" id="industry" placeholder="e.g. retail shop, SACCO, restaurant...">
+
+      <label for="service">What are you most interested in?</label>
+      <select id="service">
+        <option>Security Health Check</option>
+        <option>Cyber Awareness Training</option>
+        <option>Website Development</option>
+        <option>Data Protection Compliance</option>
+        <option>Group Security Clinic</option>
+        <option>Not sure yet — need advice</option>
+      </select>
+
+      <label for="concern">What's worrying you most right now?</label>
+      <textarea id="concern" placeholder="e.g. worried about a hacked WhatsApp account, don't have a website yet, unsure if our data is safe..."></textarea>
+
+      <label for="budget">Rough budget in mind (optional)</label>
+      <select id="budget">
+        <option value="">Prefer not to say</option>
+        <option>Under UGX 300,000</option>
+        <option>UGX 300,000 – 700,000</option>
+        <option>UGX 700,000 – 1,500,000</option>
+        <option>Over UGX 1,500,000</option>
+      </select>
+
+      <button type="submit" id="submitBtn">Submit</button>
+      <div class="status" id="status"></div>
+    </form>
+  </div>
+
+  <div class="success" id="successView">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L20 5.5V11C20 16 16.5 20 12 22C7.5 20 4 16 4 11V5.5L12 2Z"/><path d="M8.5 12L11 14.5L15.5 9.5"/></svg>
+    <h2>Thanks — we've got it</h2>
+    <p>We'll review your details and reach out within a day with next steps.</p>
+    <button onclick="location.reload()">Submit another</button>
+  </div>
+</div>
+
+<script>
+async function submitIntake(e){
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.textContent = 'Submitting...';
+
+  const entry = {
+    id: 'lead_' + Date.now(),
+    submittedAt: new Date().toISOString(),
+    name: document.getElementById('name').value,
+    business: document.getElementById('business').value,
+    phone: document.getElementById('phone').value,
+    industry: document.getElementById('industry').value,
+    service: document.getElementById('service').value,
+    concern: document.getElementById('concern').value,
+    budget: document.getElementById('budget').value,
+  };
+
+  try {
+    await window.storage.set(entry.id, JSON.stringify(entry), true);
+    document.getElementById('formView').style.display = 'none';
+    document.getElementById('successView').classList.add('show');
+  } catch (err) {
+    status.textContent = 'Something went wrong — please try again, or WhatsApp us directly.';
+    btn.disabled = false;
+  }
+}
+document.getElementById('intakeForm').addEventListener('submit', submitIntake);
+</script>
+</body>
+</html>

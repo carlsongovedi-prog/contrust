@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrust — Lead Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#1F3864; --accent:#2E75B6; --mint:#02C39A; --amber:#E0A458; --paper:#FAF7F0; --line:#DFD8C4; --ink:#16292B; }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; padding:32px 20px;}
+  .wrap{max-width:1000px; margin:0 auto;}
+  h1{font-family:'Fraunces',serif; font-size:26px; color:var(--navy); margin:0 0 4px;}
+  .sub{color:#6B7877; font-size:14px; margin-bottom:24px;}
+  .stats{display:flex; gap:14px; margin-bottom:24px; flex-wrap:wrap;}
+  .stat{background:#fff; border-radius:10px; padding:16px 20px; border:1px solid var(--line); min-width:120px;}
+  .stat .num{font-family:'Fraunces',serif; font-size:26px; color:var(--navy); font-weight:700;}
+  .stat .label{font-size:12px; color:#6B7877; margin-top:2px;}
+  .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .toolbar button{padding:9px 16px; border-radius:7px; border:1px solid var(--line); background:#fff; font-size:13px; font-weight:600; cursor:pointer; color:var(--navy);}
+  .toolbar button:hover{border-color:var(--accent);}
+  table{width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; border:1px solid var(--line);}
+  th{background:var(--navy); color:#fff; font-size:12px; text-align:left; padding:12px 14px; font-weight:600;}
+  td{padding:12px 14px; font-size:13.5px; border-top:1px solid var(--line); vertical-align:top;}
+  tr:hover td{background:#FAFAF7;}
+  .status-badge{padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:600; display:inline-block;}
+  .status-new{background:#E8F0FE; color:var(--accent);}
+  .status-contacted{background:#FFF3D9; color:#8A6600;}
+  .status-won{background:#E3F7EF; color:#0A7A57;}
+  .status-lost{background:#FBEAE8; color:#B3413A;}
+  select.status-select{border:none; background:transparent; font-size:12.5px; font-weight:600; cursor:pointer;}
+  .empty{text-align:center; padding:60px 20px; color:#9BA5A4;}
+  .empty svg{width:48px; height:48px; margin-bottom:12px; opacity:0.5;}
+  .concern-cell{max-width:220px; font-size:12.5px; color:#4B5B5A;}
+  .loading{text-align:center; padding:40px; color:#9BA5A4; font-size:14px;}
+  .note{font-size:12px; color:#9BA5A4; margin-top:16px; text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lead Tracker</h1>
+  <div class="sub">Leads submitted via the Contrust website intake form.</div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <div></div>
+    <button onclick="loadLeads()">Refresh</button>
+  </div>
+
+  <div id="content" class="loading">Loading leads...</div>
+
+  <div class="note">Status changes save automatically. This tracker shows leads submitted through the public intake form.</div>
+</div>
+
+<script>
+let leads = [];
+
+async function loadLeads(){
+  document.getElementById('content').innerHTML = '<div class="loading">Loading leads...</div>';
+  try {
+    const list = await window.storage.list('lead_', true);
+    if (!list || !list.keys || list.keys.length === 0) {
+      renderEmpty();
+      return;
+    }
+    leads = [];
+    for (const key of list.keys) {
+      try {
+        const result = await window.storage.get(key, true);
+        if (result && result.value) {
+          const entry = JSON.parse(result.value);
+          const statusResult = await window.storage.get('status_' + key, false).catch(() => null);
+          entry.status = statusResult ? JSON.parse(statusResult.value).status : 'New';
+          leads.push(entry);
+        }
+      } catch(e) {}
+    }
+    leads.sort((a,b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    renderLeads();
+  } catch (err) {
+    renderEmpty();
+  }
+}
+
+function renderEmpty(){
+  document.getElementById('stats').innerHTML = '';
+  document.getElementById('content').innerHTML = `
+    <div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+      <div>No leads yet. New submissions from the Contrust intake form will appear here.</div>
+    </div>`;
+}
+
+function renderLeads(){
+  const total = leads.length;
+  const newCount = leads.filter(l => l.status === 'New').length;
+  const contactedCount = leads.filter(l => l.status === 'Contacted').length;
+  const wonCount = leads.filter(l => l.status === 'Won').length;
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="num">${total}</div><div class="label">Total Leads</div></div>
+    <div class="stat"><div class="num">${newCount}</div><div class="label">New</div></div>
+    <div class="stat"><div class="num">${contactedCount}</div><div class="label">Contacted</div></div>
+    <div class="stat"><div class="num">${wonCount}</div><div class="label">Won</div></div>
+  `;
+
+  const rows = leads.map(l => {
+    const date = new Date(l.submittedAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+    return `
+      <tr>
+        <td>${date}</td>
+        <td><b>${escapeHtml(l.name || '')}</b><br><span style="color:#9BA5A4;font-size:12px;">${escapeHtml(l.business || '')}</span></td>
+        <td>${escapeHtml(l.phone || '')}</td>
+        <td>${escapeHtml(l.service || '')}</td>
+        <td class="concern-cell">${escapeHtml(l.concern || '\u2014')}</td>
+        <td>${escapeHtml(l.budget || '\u2014')}</td>
+        <td>
+          <select class="status-select" data-id="${l.id}" onchange="updateStatus('${l.id}', this.value)">
+            <option ${l.status==='New'?'selected':''}>New</option>
+            <option ${l.status==='Contacted'?'selected':''}>Contacted</option>
+            <option ${l.status==='Won'?'selected':''}>Won</option>
+            <option ${l.status==='Lost'?'selected':''}>Lost</option>
+          </select>
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+    <table>
+      <thead><tr><th>Date</th><th>Contact</th><th>Phone</th><th>Interested In</th><th>Concern</th><th>Budget</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function updateStatus(id, status){
+  try {
+    await window.storage.set('status_' + id, JSON.stringify({ status }), false);
+  } catch(e) {}
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+loadLeads();
+</script>
+</body>
+</html>
